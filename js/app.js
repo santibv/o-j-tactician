@@ -691,16 +691,34 @@
   let stAudio = null, rcPos = null, stLineBrgT = null, stLineLenM = null;
   const BOAT_LEN_M = 8.84; // J/88 LOA
 
+  // Air-horn blast at max output. Loudness within the phone's hardware ceiling:
+  // detuned sawtooth stack (harmonically rich ≫ sine), sub-octave for body,
+  // compressor to maximize density, gain 1.0, hard attack.
   function beep(freq, dur, vol) {
     if (stMuted) return;
     try {
       stAudio = stAudio || new (window.AudioContext || window.webkitAudioContext)();
       if (stAudio.state === 'suspended') stAudio.resume();
-      const o = stAudio.createOscillator(), g = stAudio.createGain();
-      o.type = 'sine'; o.frequency.value = freq; o.connect(g); g.connect(stAudio.destination);
-      g.gain.setValueAtTime(vol, stAudio.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, stAudio.currentTime + dur);
-      o.start(); o.stop(stAudio.currentTime + dur);
+      const t0 = stAudio.currentTime;
+      const comp = stAudio.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 14;
+      comp.attack.value = 0.002; comp.release.value = 0.08;
+      const master = stAudio.createGain();
+      master.gain.setValueAtTime(vol, t0);
+      comp.connect(master); master.connect(stAudio.destination);
+      const env = stAudio.createGain(); env.connect(comp);
+      env.gain.setValueAtTime(0.0001, t0);
+      env.gain.exponentialRampToValueAtTime(1, t0 + 0.015);            // hard attack
+      env.gain.setValueAtTime(1, t0 + Math.max(0.05, dur - 0.05));     // full sustain
+      env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);         // quick tail
+      // horn voicing: two detuned saws (beating grit) + sub-octave square + bright 2nd
+      [[freq, 'sawtooth', 0.5], [freq * 1.006, 'sawtooth', 0.5],
+       [freq / 2, 'square', 0.35], [freq * 2.01, 'sawtooth', 0.18]].forEach(([f, type, g]) => {
+        const o = stAudio.createOscillator(), og = stAudio.createGain();
+        o.type = type; o.frequency.value = f; og.gain.value = g;
+        o.connect(og); og.connect(env);
+        o.start(t0); o.stop(t0 + dur + 0.05);
+      });
     } catch (e) { /* no audio */ }
   }
   function fmtClock(rem) {
@@ -716,9 +734,9 @@
     const sec = Math.ceil(rem - 0.0001);
     if (sec !== stLastSec) {
       stLastSec = sec;
-      if (sec > 0 && [60, 30, 20, 10].includes(sec)) beep(880, 0.12, 0.25);
-      else if (sec > 0 && sec <= 5) beep(700, 0.1, 0.3);
-      else if (sec === 0) beep(440, 0.6, 0.35); // gun
+      if (sec > 0 && [60, 30, 20, 10].includes(sec)) beep(520, 0.45, 1);  // short horn blast
+      else if (sec > 0 && sec <= 5) beep(680, 0.22, 1);                   // rapid final blips
+      else if (sec === 0) beep(440, 1.8, 1);                              // the gun — long blast
     }
   }
 
