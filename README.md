@@ -1,6 +1,6 @@
 # Oh Jee!! — J/88 Tactician 🛥️
 
-**Live app: https://santibv.github.io/oh-jee-tactician/** — open it on your phone and
+**Live app: https://santibv.github.io/o-j-tactician/** — open it on your phone and
 "Add to Home Screen" for the full-screen, installable version. Allow location when asked
 (the Layline tab and line-bias ping need GPS).
 
