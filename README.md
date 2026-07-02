@@ -1,5 +1,9 @@
 # Oh Jee!! — J/88 Tactician 🛥️
 
+**Live app: https://santibv.github.io/oh-jee-tactician/** — open it on your phone and
+"Add to Home Screen" for the full-screen, installable version. Allow location when asked
+(the Layline tab and line-bias ping need GPS).
+
 A mobile-first race-day brain for the J/88 **Oh Jee!!** (Quantum sails), built for the
 Thursday-night CanOne regatta. Feed it wind, current, and the course; it tells the crew
 **what heading to sail on every leg, the target boat speed, and exactly how to tune the
