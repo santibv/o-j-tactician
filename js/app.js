@@ -934,4 +934,12 @@
   renderCondStrip(); renderMarks(); renderTips(); setupStart(); setupLayline(); setupInfo();
   renderCurrentTimeline(S.currentSeriesCenter || S.raceTime); // restore the tide timeline
   liveTick(); // set the LIVE button state (self-arms if we're already in the race window)
+
+  // deep-link: open a tab via the URL hash, e.g. …/index.html#plan
+  (function () {
+    const tab = (location.hash || '').slice(1);
+    if (!tab) return;
+    const btn = document.querySelector(`nav button[data-view="${tab}"]`);
+    if (btn) btn.click();
+  })();
 })();
