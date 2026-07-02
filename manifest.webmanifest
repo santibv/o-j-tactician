@@ -1,0 +1,13 @@
+{
+  "name": "Oh Jee!! J/88 Tactician",
+  "short_name": "Oh Jee!!",
+  "description": "Race-day routing, sail tune and tactics for the J/88 Oh Jee!!",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e14",
+  "theme_color": "#0a0e14",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

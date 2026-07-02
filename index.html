@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0a0e14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Oh Jee!! — J/88 Tactician</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="css/styles.css?v=31" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="boat">⛵</span>
+      <div>
+        <h1>Oh Jee!! Tactician</h1>
+        <p class="sub">J/88 · Quantum sails · Thursday night CanOne</p>
+      </div>
+      <button class="night-toggle" id="nightBtn" title="Night vision">🌙</button>
+    </div>
+    <div class="cond-strip" id="condStrip"><!-- live condition chips --></div>
+  </header>
+
+  <main>
+    <!-- ============ CONDITIONS ============ -->
+    <section class="view active" id="view-cond">
+      <h2 class="section">Venue &amp; race time</h2>
+      <div class="card">
+        <button class="btn sec" id="useCanOne">⚓ Use Can One venue (Larchmont / W. LIS)</button>
+        <div class="hint" id="venueHint" style="margin-bottom:6px">Sets the start by Execution Rocks and next Thursday 19:00. Headings show in °M; the magnetic variation is pulled from your location on fetch.</div>
+        <label class="fld">Search venue (or enter lat/lon below)</label>
+        <div class="row">
+          <input id="geoSearch" placeholder="e.g. Larchmont Harbor" style="flex:2" />
+          <button class="btn small sec" id="geoBtn" style="flex:0 0 auto">Find</button>
+        </div>
+        <div id="geoResults"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="fld">Latitude</label><input id="lat" type="number" step="0.0001" placeholder="41.05" /></div>
+          <div><label class="fld">Longitude</label><input id="lon" type="number" step="0.0001" placeholder="-73.75" /></div>
+        </div>
+        <button class="btn ghost small" id="useGps" style="margin-top:8px">📍 Use my location</button>
+        <label class="fld">Race start (local)</label>
+        <input id="raceTime" type="datetime-local" />
+        <button class="btn" id="fetchBtn" style="margin-top:12px">⛅ Fetch wind &amp; current forecast</button>
+        <button class="btn sec" id="liveBtn" style="margin-top:8px">📡 Live wind &amp; tide</button>
+        <div class="hint" id="fetchHint">Fetch = forecast for the race start. LIVE arms itself around race time (1 h before → 2.5 h after) and refreshes measured wind (NOAA Kings Point, ~3 nm from the start) + the tide every 6 min. It pauses automatically if you set the sliders by hand; tap the button to pause/resume any time.</div>
+      </div>
+
+      <h2 class="section">Wind <span class="muted" id="windSrc"></span></h2>
+      <div class="card">
+        <div class="dial"><span class="big" id="twsVal">10</span><span class="unit">kt TWS</span>
+          <span class="muted" id="gustVal" style="margin-left:auto"></span></div>
+        <input type="range" id="tws" min="0" max="35" step="1" value="10" />
+        <div class="dial" style="margin-top:14px"><span class="big" id="wdirVal">240</span><span class="unit">°M wind from (<span id="wdirCompass">WSW</span>)</span></div>
+        <input type="range" id="wdir" min="0" max="359" step="1" value="240" />
+        <div id="windTimeline"></div>
+        <div id="windModels"></div>
+      </div>
+
+      <h2 class="section">Current</h2>
+      <div class="card">
+        <div class="dial"><span class="big" id="driftVal">0.0</span><span class="unit">kt drift</span></div>
+        <input type="range" id="drift" min="0" max="4" step="0.1" value="0" />
+        <div class="dial" style="margin-top:14px"><span class="big" id="setVal">0</span><span class="unit">°M set, flows toward (<span id="setCompass">N</span>)</span></div>
+        <input type="range" id="set" min="0" max="359" step="1" value="0" />
+        <div id="curTimeline"></div>
+        <div class="hint">Set = the direction the current flows <i>toward</i>. 0 drift = no current. At the Can One venue, the forecast pulls NOAA's tidal-current prediction for Execution Rocks.</div>
+        <div class="hint" id="curSrc" style="color:var(--accent)"></div>
+      </div>
+
+    </section>
+
+    <!-- ============ COURSE ============ -->
+    <section class="view" id="view-course">
+      <h2 class="section">Tonight's course <span class="muted">— Can One marks</span></h2>
+      <div class="card">
+        <label class="fld">Tap the marks in the order the RC signals them — tap again to remove. Start &amp; finish at A are automatic.</label>
+        <div id="coChips" class="chip-grid"></div>
+        <div class="hint" id="coSeq"></div>
+        <div class="row" style="margin-top:10px">
+          <div><label class="fld">Laps</label>
+            <select id="coLaps"><option value="1">1 (×1)</option><option value="2">2 (×2)</option><option value="3">3 (×3)</option></select></div>
+          <div><label class="fld">Rounding</label>
+            <select id="coRound"><option value="port">Port (default)</option><option value="stbd">Starboard (green placard)</option></select></div>
+        </div>
+        <button class="btn" id="coBuild" style="margin-top:10px">🧭 Build tonight's plan</button>
+        <div class="hint">Marks are the Can One government buoys; the RC signals them by letter. Bearings &amp; distances come straight from the SI mark table.</div>
+      </div>
+
+      <h2 class="section">Generic builder <span class="muted">— other venues</span></h2>
+      <div class="card">
+        <label class="fld">Quick build</label>
+        <div class="row">
+          <select id="courseType">
+            <option value="WL2">Windward–Leeward (2 laps)</option>
+            <option value="WL1">Windward–Leeward (1 lap)</option>
+            <option value="WL3">Windward–Leeward (3 laps)</option>
+            <option value="triangle">Olympic triangle</option>
+          </select>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="fld">Windward mark bearing °M</label>
+            <input id="wwBearing" type="number" placeholder="= wind dir" /></div>
+          <div><label class="fld">Beat length (nm)</label>
+            <input id="legLen" type="number" step="0.1" value="0.8" /></div>
+        </div>
+        <button class="btn sec small" id="genCourse" style="margin-top:10px">↻ Generate from start point</button>
+        <div class="hint">Uses your venue lat/lon as the start. Leave bearing blank to set the windward mark dead upwind of the current wind.</div>
+      </div>
+
+      <h2 class="section">Marks <span class="muted" id="markCount"></span></h2>
+      <div id="markList"></div>
+      <div class="card tight">
+        <label class="fld">Add a mark — bearing &amp; distance from the previous mark (or start)</label>
+        <div class="row">
+          <input id="mkName" placeholder="Name (e.g. W1)" style="flex:1.2" />
+          <input id="mkBrng" type="number" placeholder="brng °M" />
+          <input id="mkDist" type="number" step="0.05" placeholder="nm" />
+        </div>
+        <button class="btn ghost small" id="addMark" style="margin-top:8px">+ Add mark</button>
+        <button class="btn ghost small" id="clearMarks" style="margin-top:6px">Clear all marks</button>
+      </div>
+    </section>
+
+    <!-- ============ PLAN ============ -->
+    <section class="view" id="view-plan">
+      <h2 class="section">Race plan <span class="muted" id="planCond"></span></h2>
+      <div class="totals" id="planTotals"></div>
+      <div id="planBody"></div>
+    </section>
+
+    <!-- ============ START ============ -->
+    <section class="view" id="view-start">
+      <h2 class="section">Start sequence</h2>
+      <div class="card center">
+        <div id="startClock" class="start-clock">5:00</div>
+        <button class="btn" id="syncBtn">Start / sync to gun</button>
+        <div class="row" style="margin-top:8px">
+          <button class="btn sec" id="resetBtn">Reset</button>
+          <button class="btn sec" id="muteBtn">🔊 Sound on</button>
+        </div>
+        <label class="fld" style="margin-top:10px">Sequence length</label>
+        <select id="seqLen">
+          <option value="300">5:00 (standard)</option>
+          <option value="360">6:00</option>
+          <option value="180">3:00</option>
+        </select>
+        <div class="hint">Tap <b>sync to gun</b> on each RC signal — it snaps the clock to the nearest minute. Sound cues at 1:00, 30 s, the last 5 s, and the gun. First warning 19:00.</div>
+      </div>
+
+      <h2 class="section">Line bias</h2>
+      <div class="card">
+        <button class="btn sec" id="pingRC">📍 Ping committee boat (at check-in)</button>
+        <div class="hint" id="pingState">Line = committee boat → Mark A. Tap this as you check in by the RC stern; Mark A's position is known, so that's all it needs.</div>
+        <label class="fld" style="margin-top:10px">…or sight the line bearing (committee boat → Mark A), °M</label>
+        <input id="lineBrg" type="number" placeholder="e.g. 110" />
+        <div id="biasOut" class="bias-out"></div>
+        <div class="hint">Favored end is the one further upwind. GPS is approximate over a short line — sighting the bearing is usually more accurate.</div>
+      </div>
+    </section>
+
+    <!-- ============ LAYLINE ============ -->
+    <section class="view" id="view-layline">
+      <h2 class="section">Live layline assist</h2>
+      <div class="card tight">
+        <label class="fld">Mark to lay</label>
+        <select id="llMark" class="ll-select"></select>
+      </div>
+      <div id="llBody" class="ll-body"></div>
+    </section>
+
+    <!-- ============ TUNE ============ -->
+    <section class="view" id="view-tune">
+      <h2 class="section">Sail tune <span class="muted">for current wind</span></h2>
+      <div id="tuneBody"></div>
+    </section>
+
+    <!-- ============ TIPS ============ -->
+    <section class="view" id="view-tips">
+      <h2 class="section">Crew playbook</h2>
+      <div id="tipsBody"></div>
+      <h2 class="section">Data sources</h2>
+      <div class="card src" id="srcBody"></div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-view="cond" class="active"><span class="ic">⛅</span>Cond</button>
+    <button data-view="course"><span class="ic">🗺️</span>Course</button>
+    <button data-view="plan"><span class="ic">🧭</span>Plan</button>
+    <button data-view="start"><span class="ic">⏱️</span>Start</button>
+    <button data-view="layline"><span class="ic">📐</span>Layline</button>
+    <button data-view="tune"><span class="ic">🔧</span>Tune</button>
+    <button data-view="tips"><span class="ic">📋</span>Tips</button>
+  </nav>
+
+  <!-- info popover (tune control explanations) -->
+  <div id="infoModal" class="info-modal" hidden>
+    <div class="info-card">
+      <div class="info-head"><span id="infoTitle" class="info-title"></span><button id="infoClose" class="info-x" aria-label="Close">×</button></div>
+      <div id="infoText" class="info-text"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js?v=31"></script>
+  <script src="js/geo.js?v=31"></script>
+  <script src="js/weather.js?v=31"></script>
+  <script src="js/app.js?v=31"></script>
+</body>
+</html>
