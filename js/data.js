@@ -245,9 +245,16 @@ const PLANING_THRESHOLD_KT = 16;
  * so current matters. Magnetic variation ~12.6°W (2026, NOAA WMM).
  * ------------------------------------------------------------------------- */
 const VENUE = {
-  name: 'Can One — Western LIS (Larchmont)',
-  series: '2026 Can One Thursday Night Series',
-  startLat: 40.87814, startLon: -73.73786, // Execution Rocks area (Mark A)
+  name: 'Western LIS — Execution Rocks',
+  series: 'Turkey Day Reach · Sat 7 Nov 2026',
+  club: 'Huguenot YC',
+  // Mark A = G Can "1", "0.8 nm N of Execution Rocks" (SI 7.4 / 8.3). Estimated from that
+  // description off the Execution Rocks Light (40.8781, -73.7377) — the SI A2 distance
+  // table only fits A ~0.8 nm north of the light. Crew can override from the chartplotter.
+  markA: { lat: 40.89143, lon: -73.73768 },
+  startLat: 40.89143, startLon: -73.73768, // forecast point = Mark A
+  eventStart: '2026-11-07T12:00',          // first warning (SI 5.2)
+  timeLimitAt: '16:00',                    // absolute finish deadline (SI 10.1)
   variationDeg: -12.6,                      // magnetic variation, West = negative
   currentStation: 'LIS1036',                // NOAA tidal-current station: Execution Rocks
   currentStationName: 'Execution Rocks',
@@ -259,13 +266,13 @@ const VENUE = {
     { label: 'Offshore', lat: 40.836, lon: -73.701 },  // SE, toward mid-Sound
   ],
   vhf: 71,
-  firstWarning: '19:00 Thursdays',
-  timeLimitMin: 90,
+  firstWarning: '12:00',
+  timeLimitMin: 90,                        // fallback only when timeLimitAt is unset
   sailflow: 'https://sailflow.com/spot/1498',
-  eventUrl: 'https://www.yachtscoring.com/emenu/50707',
-  fleetNote: 'Oh Jee (USA 25) races the J/88 one-design class — 6 rivals: ' +
-    'Albondigas, Deviation YCC, One Too Many, Sibling Rivalry, Whirlwind, Wild Thing. ' +
-    'One-design = boat-for-boat, so these polar targets are exactly the bar to beat.',
+  eventUrl: 'https://www.yachtscoring.com/emenu/50979',
+  fleetNote: 'Scored PHRF time-on-time (TCF = 650 / (550 + PHRF), distance rating). ' +
+    'The RC sets the classes (numeral pennants) — check the entry list on Yacht Scoring. ' +
+    'It is not boat-for-boat today: sail to the polar targets and let the handicap do the rest.',
 };
 
 /* Can One marks — driven by the SIs' OWN Appendix A2 matrix (the table the RC
@@ -279,7 +286,11 @@ const VENUE = {
 const CAN_ONE_MARKS = {
   bearingsAreMagnetic: true,
   windwardLegNm: 1.0,
-  codes: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'U'],
+  // chips shown on the Course tab (today's SI 7.4 list). U stays in the matrix but isn't used today.
+  codes: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'R'],
+  // marks NOT in the distance table: legs to/from them are computed from a position
+  // the crew enters off the chartplotter (Course tab → Mark positions).
+  plotterMarks: { R: 'R Nun "40A" off Milton Point' },
   // matrix[FROM][TO] = [bearingMagnetic, distanceNm]
   matrix: {
     A: { B: [136, 1.1], C: [224, 2.4], D: [196, 1.4], E: [207, 2.0], F: [2, 0.7], G: [33, 2.0], H: [210, 3.1], J: [282, 0.9], K: [50, 2.5], M: [90, 4.6], N: [115, 3.6], U: [157, 0.6] },
@@ -298,15 +309,16 @@ const CAN_ONE_MARKS = {
   },
 };
 
-/* Course conventions from the 2026 SIs. */
+/* Course conventions — Turkey Day Reach SIs (Huguenot YC, 7 Nov 2026). */
 const COURSE_RULES = [
-  'Marks rounded in the order signaled, left to PORT by default.',
-  'GREEN placard on the course board → round ALL marks to STARBOARD.',
-  'Course-letter suffix "2" → sail it twice around, through the start line each lap.',
-  'Mark A is the start AND the finish; windward mark W is set ~1 nm upwind.',
-  'First warning 19:00. Code flag F up 5 min before, down (sound) 1 min before warning.',
-  'Check in by the RC stern (name + sail no.) before your start — not by VHF.',
-  'Time limit: 90 min for first boat; +30 min then TLE. VHF 71 for RC broadcasts.',
+  'One race. First warning 12:00; class starts may follow at 5-min intervals (numeral pennants).',
+  'Start & finish line: yellow-flag staff on the RC boat ↔ Mark A (G Can "1", 0.8 nm N of Execution Rocks).',
+  'Marks left in the order displayed, read bow to stern — to PORT unless a GREEN placard → all to STARBOARD.',
+  'Finish from the direction of the last mark. Starting >15 min after your gun = DNS.',
+  'Check in before 5 min to your start: sail past the RC and hail your sail number.',
+  'Time limit 16:00 for all boats (TLE after that). RC leaves station 16:05.',
+  'VHF 71. No transmitting while racing except emergencies / retiring (applies to phones too).',
+  'Mark R (Milton Point nun "40A") is not in the distance table — enter its position from the chartplotter on the Course tab.',
 ];
 
 /* ---------------------------------------------------------------------------

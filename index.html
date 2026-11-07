@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Oh Jee!! — J/88 Tactician</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="css/styles.css?v=33" />
+  <link rel="stylesheet" href="css/styles.css?v=34" />
 </head>
 <body>
   <header>
@@ -16,7 +16,7 @@
       <span class="boat">⛵</span>
       <div>
         <h1>Oh Jee!! Tactician</h1>
-        <p class="sub">J/88 · Quantum sails · Thursday night CanOne</p>
+        <p class="sub">J/88 · Quantum sails · W. Long Island Sound</p>
       </div>
       <button class="night-toggle" id="nightBtn" title="Night vision">🌙</button>
     </div>
@@ -28,8 +28,8 @@
     <section class="view active" id="view-cond">
       <h2 class="section">Venue &amp; race time</h2>
       <div class="card">
-        <button class="btn sec" id="useCanOne">⚓ Use Can One venue (Larchmont / W. LIS)</button>
-        <div class="hint" id="venueHint" style="margin-bottom:6px">Sets the start by Execution Rocks and next Thursday 19:00. Headings show in °M; the magnetic variation is pulled from your location on fetch.</div>
+        <button class="btn sec" id="useCanOne">⚓ Use race venue (Turkey Day Reach · W. LIS)</button>
+        <div class="hint" id="venueHint" style="margin-bottom:6px">Sets the start at Mark A (G Can “1”, 0.8 nm N of Execution Rocks) and today's 12:00 first warning. Headings show in °M; the magnetic variation is pulled from your location on fetch.</div>
         <label class="fld">Search venue (or enter lat/lon below)</label>
         <div class="row">
           <input id="geoSearch" placeholder="e.g. Larchmont Harbor" style="flex:2" />
@@ -66,7 +66,7 @@
         <div class="dial" style="margin-top:14px"><span class="big" id="setVal">0</span><span class="unit">°M set, flows toward (<span id="setCompass">N</span>)</span></div>
         <input type="range" id="set" min="0" max="359" step="1" value="0" />
         <div id="curTimeline"></div>
-        <div class="hint">Set = the direction the current flows <i>toward</i>. 0 drift = no current. At the Can One venue, the forecast pulls NOAA's tidal-current prediction for Execution Rocks.</div>
+        <div class="hint">Set = the direction the current flows <i>toward</i>. 0 drift = no current. At this venue, the forecast pulls NOAA's tidal-current prediction for Execution Rocks.</div>
         <div class="hint" id="curSrc" style="color:var(--accent)"></div>
       </div>
 
@@ -74,7 +74,7 @@
 
     <!-- ============ COURSE ============ -->
     <section class="view" id="view-course">
-      <h2 class="section">Tonight's course <span class="muted">— Can One marks</span></h2>
+      <h2 class="section">Today's course <span class="muted">— government marks</span></h2>
       <div class="card">
         <label class="fld">Tap the marks in the order the RC signals them — tap again to remove. Start &amp; finish at A are automatic.</label>
         <div id="coChips" class="chip-grid"></div>
@@ -85,8 +85,27 @@
           <div><label class="fld">Rounding</label>
             <select id="coRound"><option value="port">Port (default)</option><option value="stbd">Starboard (green placard)</option></select></div>
         </div>
-        <button class="btn" id="coBuild" style="margin-top:10px">🧭 Build tonight's plan</button>
-        <div class="hint">Marks are the Can One government buoys; the RC signals them by letter. Bearings &amp; distances come straight from the SI mark table.</div>
+        <button class="btn" id="coBuild" style="margin-top:10px">🧭 Build the race plan</button>
+        <div class="hint">Marks are government buoys; the RC signals them by letter. Bearings &amp; distances come from the SI mark table (Mark R from the position you enter below).</div>
+      </div>
+
+
+      <h2 class="section">Mark positions <span class="muted">— from the chartplotter</span></h2>
+      <div class="card">
+        <div class="hint" id="mkPosState" style="margin-top:0"></div>
+        <label class="fld">Mark A — G Can “1” (optional: replaces the estimate)</label>
+        <div class="row">
+          <input id="mpALat" placeholder="lat e.g. 40 53.486 N" autocomplete="off" />
+          <input id="mpALon" placeholder="lon e.g. 73 44.261 W" autocomplete="off" />
+        </div>
+        <label class="fld">Mark R — nun “40A” off Milton Point (needed only if the RC signals R)</label>
+        <div class="row">
+          <input id="mpRLat" placeholder="lat" autocomplete="off" />
+          <input id="mpRLon" placeholder="lon" autocomplete="off" />
+        </div>
+        <button class="btn sec small" id="mpSave" style="margin-top:10px">💾 Save mark positions</button>
+        <button class="btn ghost small" id="mpResetA" style="margin-top:6px">Reset A to the SI estimate</button>
+        <div class="hint">Type it the way the plotter shows it — degrees and minutes (40 53.486 N) or decimal (40.89143). West is assumed for longitude.</div>
       </div>
 
       <h2 class="section">Generic builder <span class="muted">— other venues</span></h2>
@@ -147,7 +166,7 @@
           <option value="360">6:00</option>
           <option value="180">3:00</option>
         </select>
-        <div class="hint">Tap <b>sync to gun</b> on each RC signal — it snaps the clock to the nearest minute. Sound cues at 1:00, 30 s, the last 5 s, and the gun. First warning 19:00.</div>
+        <div class="hint">Tap <b>sync to gun</b> on each RC signal — it snaps the clock to the nearest minute. Sound cues at 1:00, 30 s, the last 5 s, and the gun. First warning 12:00 — your class may start 5, 10… min later.</div>
       </div>
 
       <h2 class="section">Line bias</h2>
@@ -204,9 +223,9 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=33"></script>
-  <script src="js/geo.js?v=33"></script>
-  <script src="js/weather.js?v=33"></script>
-  <script src="js/app.js?v=33"></script>
+  <script src="js/data.js?v=34"></script>
+  <script src="js/geo.js?v=34"></script>
+  <script src="js/weather.js?v=34"></script>
+  <script src="js/app.js?v=34"></script>
 </body>
 </html>

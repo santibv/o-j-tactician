@@ -10,7 +10,8 @@
 
   /* ---------------- state ---------------- */
   const DEFAULTS = {
-    venueName: '', lat: '', lon: '', raceTime: nextThursday1800(),
+    venueName: '', lat: '', lon: '', raceTime: defaultRaceTime(),
+    markPos: {}, // chartplotter positions entered by the crew: { A: {lat,lon}, R: {lat,lon} }
     tws: 10, wdir: 240, drift: 0, set: 0,
     variation: DEFAULT_VARIATION,               // auto-updated from location on fetch
     marks: [], courseType: 'WL2', wwBearing: '', legLen: 0.8,
@@ -19,6 +20,12 @@
     liveOverride: null, // null = auto (arms in race window), true = forced on, false = paused
   };
   let S = load();
+  if (!S.markPos || typeof S.markPos !== 'object') S.markPos = {};
+  // a saved race time more than 6 h in the past is stale — roll it to the next race
+  (function () {
+    const t = new Date(String(S.raceTime).replace(' ', 'T')).getTime();
+    if (!isFinite(t) || t < Date.now() - 6 * 3600000) S.raceTime = defaultRaceTime();
+  })();
 
   function load() {
     try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('ohjee') || '{}')); }
@@ -36,6 +43,26 @@
     d.setDate(d.getDate() + add); d.setHours(18, 0);
     return localISO(d);
   }
+  // a dated one-off event wins until its time limit passes; otherwise the weekly series
+  function defaultRaceTime() {
+    const V = DATA.VENUE;
+    if (V.eventStart) {
+      const end = new Date(V.eventStart.slice(0, 10) + 'T' + (V.timeLimitAt || '23:59'));
+      if (Date.now() < end.getTime()) return V.eventStart;
+    }
+    return nextThursday1800();
+  }
+  // minutes from the warning to the finish deadline (absolute clock time if the SIs give one)
+  function timeLimitMin() {
+    const V = DATA.VENUE;
+    if (!V.timeLimitAt) return V.timeLimitMin;
+    const rt = new Date(String(S.raceTime).replace(' ', 'T'));
+    const end = new Date(String(S.raceTime).slice(0, 10) + 'T' + V.timeLimitAt);
+    const m = Math.round((end - rt) / 60000);
+    return isFinite(m) && m > 0 ? m : V.timeLimitMin;
+  }
+  const timeLimitText = () => DATA.VENUE.timeLimitAt
+    ? `${DATA.VENUE.timeLimitAt} (~${fmtDur(timeLimitMin())} after the warning)` : `${DATA.VENUE.timeLimitMin} min`;
 
   /* ---------------- heading formatting (magnetic-only) ---------------- */
   // The app is magnetic-only: boat compass + RC course board are magnetic.
@@ -187,7 +214,7 @@
     const rt = new Date(S.raceTime.replace(' ', 'T')).getTime();
     if (!isFinite(rt)) return false;
     const now = Date.now();
-    return now >= rt - 60 * 60000 && now <= rt + 150 * 60000;
+    return now >= rt - 60 * 60000 && now <= rt + Math.max(150, timeLimitMin() + 15) * 60000;
   }
   function liveIsOn() {
     if (S.liveOverride === true) return true;
@@ -380,10 +407,13 @@
   const aRow = (code) => CO.matrix.A[code];           // [magBrng, nm] from start
   const isTableMark = (code) => code === 'A' || !!CO.matrix[code];
 
+  // Mark A is a fixed buoy: chartplotter position if the crew entered one, else the SI estimate.
+  // (Deliberately NOT the venue lat/lon fields — those are just the forecast point.)
   function startMark() {
-    const lat = num($('lat').value) || DATA.VENUE.startLat, lon = num($('lon').value) || DATA.VENUE.startLon;
-    return { code: 'A', name: 'Start (A)', lat, lon };
+    const p = (S.markPos && S.markPos.A) || DATA.VENUE.markA || { lat: DATA.VENUE.startLat, lon: DATA.VENUE.startLon };
+    return { code: 'A', name: 'Start (A)', lat: p.lat, lon: p.lon };
   }
+  let coMissing = []; // signaled marks with no known position (e.g. R before it's entered)
   // build the live marks array from the signaled letters + laps (W computed upwind)
   function buildCanOneMarks() {
     const letters = (S.courseLetters || '').toUpperCase().replace(/[^A-Z]/g, ' ').split(/\s+/).filter(Boolean);
@@ -391,9 +421,11 @@
     const pos = G.reconstructMarks(CO, start, S.variation); // {A:{lat,lon}, B:{...}, ...}
     const lookup = (L) => {
       if (L === 'A') return start;
-      if (pos[L]) return { code: L, name: 'Mark ' + L, lat: pos[L].lat, lon: pos[L].lon };
+      const p = (CO.plotterMarks && CO.plotterMarks[L]) ? S.markPos[L] : pos[L];
+      if (p) return { code: L, name: 'Mark ' + L, lat: p.lat, lon: p.lon };
       return null;
     };
+    coMissing = letters.filter((L) => !lookup(L));
     const seq = letters.map(lookup).filter(Boolean);
     if (!seq.length) return [];
     const laps = Math.max(1, +S.coLaps || 1);
@@ -431,9 +463,77 @@
       box.appendChild(c);
     });
     const sq = $('coSeq');
-    if (sq) sq.innerHTML = seq.length
+    const needPos = seq.filter((L) => CO.plotterMarks && CO.plotterMarks[L] && !S.markPos[L]);
+    if (sq) sq.innerHTML = (seq.length
       ? `Course: <b style="color:var(--txt)">A → ${seq.join(' → ')} → A</b>`
-      : 'Tap marks in race order; tap again to remove.';
+      : 'Tap marks in race order; tap again to remove.')
+      + (needPos.length ? `<br><span style="color:var(--warn)">⚠ Mark ${needPos.join(', ')} needs its position — enter it below from the chartplotter.</span>` : '');
+  }
+
+  /* ---- mark positions from the chartplotter (A override, R) ---- */
+  // accepts "40.8914", "40 53.486", "40°53.486'N", "73 44 15 W", "-73.7377"
+  function parseCoord(str, isLon) {
+    if (str == null || String(str).trim() === '') return null;
+    const s = String(str).trim().toUpperCase();
+    const nums = (s.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    if (!nums.length || nums.length > 3) return NaN;
+    const [d, m = 0, sec = 0] = nums;
+    if (m >= 60 || sec >= 60) return NaN;
+    let v = d + m / 60 + sec / 3600;
+    if (/^-/.test(s) || /[SW]/.test(s)) v = -v;
+    if (isLon && v > 0) v = -v; // Long Island Sound is west longitude
+    return v;
+  }
+  function fmtDM(v, isLon) {
+    const a = Math.abs(v), d = Math.floor(a), m = (a - d) * 60;
+    return `${d}°${m.toFixed(3)}'${isLon ? (v < 0 ? 'W' : 'E') : (v < 0 ? 'S' : 'N')}`;
+  }
+  const fmtPos = (p) => `${fmtDM(p.lat, false)} ${fmtDM(p.lon, true)}`;
+  function renderMarkPosState() {
+    const box = $('mkPosState'); if (!box) return;
+    const A = startMark();
+    const lines = [S.markPos.A
+      ? `A: <b>chartplotter ✓</b> ${fmtPos(A)}`
+      : `A: SI estimate ${fmtPos(A)} <span class="muted">(0.8 nm N of Execution Rocks — enter the plotter position if you can)</span>`];
+    Object.keys(CO.plotterMarks || {}).forEach((L) => {
+      const p = S.markPos[L];
+      if (p) {
+        const b = head(G.bearing(A, p)).num, d = G.distanceNm(A, p);
+        lines.push(`${L}: <b>✓</b> ${fmtPos(p)} <span class="muted">· from A ${b}°M ${d.toFixed(1)} nm</span>`);
+      } else {
+        lines.push(`${L}: <span style="color:var(--warn)">not set</span> <span class="muted">— ${CO.plotterMarks[L]}; only needed if the RC signals ${L}</span>`);
+      }
+    });
+    box.innerHTML = lines.join('<br>');
+    ['A', 'R'].forEach((L) => {
+      const p = S.markPos[L];
+      if ($('mp' + L + 'Lat')) { $('mp' + L + 'Lat').value = p ? fmtDM(p.lat, false) : ''; $('mp' + L + 'Lon').value = p ? fmtDM(p.lon, true) : ''; }
+    });
+  }
+  function setupMarkPos() {
+    if (!$('mpSave')) return;
+    $('mpSave').addEventListener('click', () => {
+      const ref = DATA.VENUE.markA || { lat: DATA.VENUE.startLat, lon: DATA.VENUE.startLon };
+      const next = Object.assign({}, S.markPos), errs = [];
+      ['A', 'R'].forEach((L) => {
+        const la = parseCoord($('mp' + L + 'Lat').value, false), lo = parseCoord($('mp' + L + 'Lon').value, true);
+        if (la === null && lo === null) { delete next[L]; return; }
+        if (la == null || lo == null || !isFinite(la) || !isFinite(lo)) { errs.push(`${L}: enter both latitude and longitude (e.g. 40 53.486 N / 73 44.261 W)`); return; }
+        const p = { lat: la, lon: lo };
+        if (G.distanceNm(ref, p) > 15) { errs.push(`${L}: ${fmtPos(p)} is more than 15 nm from the race area — check the numbers`); return; }
+        next[L] = p;
+      });
+      if (errs.length) { $('mkPosState').innerHTML = `<span style="color:var(--warn)">${errs.join('<br>')}</span>`; return; }
+      S.markPos = next; save();
+      recalcPingedLine();
+      renderMarkPosState(); renderCoChips(); renderMarks(); renderCondStrip(); refreshBias();
+    });
+    $('mpResetA').addEventListener('click', () => {
+      delete S.markPos.A; save();
+      recalcPingedLine();
+      renderMarkPosState(); renderMarks(); renderCondStrip(); refreshBias();
+    });
+    renderMarkPosState();
   }
   $('coBuild').addEventListener('click', () => {
     S.coLaps = $('coLaps').value; S.coRound = $('coRound').value;
@@ -449,23 +549,24 @@
   });
   $('useCanOne').addEventListener('click', () => {
     const V = DATA.VENUE;
-    S.lat = V.startLat.toFixed(4); S.lon = V.startLon.toFixed(4); S.venueName = V.name; S.raceTime = nextThursday1800();
+    S.lat = V.startLat.toFixed(4); S.lon = V.startLon.toFixed(4); S.venueName = V.name; S.raceTime = defaultRaceTime();
     $('lat').value = S.lat; $('lon').value = S.lon; $('raceTime').value = S.raceTime;
     save(); renderCondStrip();
-    $('venueHint').innerHTML = `📍 ${V.name} · headings in °M (var ${Math.abs(V.variationDeg)}°W) · VHF ${V.vhf} · first warning ${V.firstWarning}.`;
+    $('venueHint').innerHTML = `📍 ${V.series} · ${V.club} · headings in °M (var ${Math.abs(V.variationDeg)}°W) · VHF ${V.vhf} · first warning ${V.firstWarning} · time limit ${timeLimitText()}.`;
   });
   renderCoChips();
+  setupMarkPos();
 
   function renderMarks() {
     const box = $('markList'); box.innerHTML = '';
     const active = getActiveMarks();
     $('markCount').textContent = active.length ? `(${active.length})` : '';
     if (S.canOneMode) {
-      const b = el('div', 'note', `⚓ Can One course <b>${(S.courseLetters || '').toUpperCase().trim()}</b>${(+S.coLaps > 1) ? ' ×' + S.coLaps : ''} · round to <b>${S.coRound === 'stbd' ? 'starboard' : 'port'}</b>. W re-computes with the wind. <a href="#" id="exitCo" style="color:var(--accent)">edit / clear</a>`);
+      const b = el('div', 'note', `⚓ Course <b>${(S.courseLetters || '').toUpperCase().trim()}</b>${(+S.coLaps > 1) ? ' ×' + S.coLaps : ''} · round to <b>${S.coRound === 'stbd' ? 'starboard' : 'port'}</b>. W re-computes with the wind. <a href="#" id="exitCo" style="color:var(--accent)">edit / clear</a>`);
       box.appendChild(b);
       box.querySelector('#exitCo').addEventListener('click', (e) => { e.preventDefault(); S.canOneMode = false; save(); renderMarks(); renderCondStrip(); });
     }
-    if (!active.length) { box.appendChild(el('div', 'empty-state', '<div class="em">🗺️</div>Build tonight\'s Can One course above, or add marks below.')); return; }
+    if (!active.length) { box.appendChild(el('div', 'empty-state', '<div class="em">🗺️</div>Build today\'s course above, or add marks below.')); return; }
     active.forEach((m, i) => {
       const row = el('div', 'mark', `<div class="idx">${m.code || i}</div>
         <div><div class="nm">${m.name}</div><div class="co">${coordLine(m)}</div></div>`);
@@ -519,12 +620,14 @@
     $('planTotals').innerHTML = '';
     const marks = getActiveMarks();
     if (marks.length < 2) {
-      body.appendChild(el('div', 'empty-state', '<div class="em">🧭</div>Build tonight\'s course on the Course tab to get a plan.'));
+      body.appendChild(el('div', 'empty-state', '<div class="em">🧭</div>Build the course on the Course tab to get a plan.'));
       return;
     }
     if (S.canOneMode) {
       const round = S.coRound === 'stbd' ? 'STARBOARD (green placard)' : 'PORT';
-      body.appendChild(el('div', 'note', `⚓ <b>${(S.courseLetters || '').toUpperCase().trim()}</b>${(+S.coLaps > 1) ? ' ×' + S.coLaps : ''} · round marks to <b>${round}</b> · start/finish at A. Time limit ${DATA.VENUE.timeLimitMin} min.`));
+      body.appendChild(el('div', 'note', `⚓ <b>${(S.courseLetters || '').toUpperCase().trim()}</b>${(+S.coLaps > 1) ? ' ×' + S.coLaps : ''} · round marks to <b>${round}</b> · start/finish at A. Time limit ${timeLimitText()}.`));
+      if (coMissing.length)
+        body.appendChild(el('div', 'note warn', `⚠ Mark ${coMissing.join(', ')} has no position yet, so it is <b>left out of this plan</b>. Enter it on the Course tab (Mark positions) from the chartplotter.`));
     }
     const sn = spatialNote(S.spatialWind, S.wdir, marks[0]);
     if (sn) {
@@ -541,11 +644,12 @@
       if (leg.etaMin) totalMin += leg.etaMin; else unknown = true;
       body.appendChild(renderLeg(i + 1, codeName(a), codeName(b), leg, b, marks));
     }
-    const over = totalMin > DATA.VENUE.timeLimitMin;
+    const limit = timeLimitMin();
+    const over = totalMin > limit;
     $('planTotals').innerHTML =
       `<div><b>${totalDist.toFixed(2)}</b> nm</div><div style="${over ? 'color:var(--warn)' : ''}"><b>${fmtDur(totalMin)}</b>${unknown ? '+' : ''} est.</div><div><b>${marks.length - 1}</b> legs</div>`;
     if (S.canOneMode && over)
-      body.appendChild(el('div', 'note warn', `⚠ Estimated ${fmtDur(totalMin)} exceeds the 90-min limit at ${Math.round(S.tws)} kt — RC may shorten course.`));
+      body.appendChild(el('div', 'note warn', `⚠ Estimated ${fmtDur(totalMin)} is longer than the ~${fmtDur(limit)} until the ${DATA.VENUE.timeLimitAt || ''} time limit at ${Math.round(S.tws)} kt — RC may shorten course.`));
   }
   function codeName(m) {
     if (!m.code) return m.name;
@@ -662,8 +766,8 @@
     const body = $('tipsBody'); body.innerHTML = '';
     const V = DATA.VENUE;
     const vcard = el('div', 'card tight');
-    vcard.appendChild(el('h2', 'section', '⚓ Can One — race rules')); vcard.firstChild.style.margin = '0 0 4px';
-    vcard.appendChild(el('div', 'muted', `${V.series} · Larchmont YC · W. Long Island Sound · VHF ${V.vhf} · first warning ${V.firstWarning}`));
+    vcard.appendChild(el('h2', 'section', '⚓ Race rules — ' + V.series)); vcard.firstChild.style.margin = '0 0 4px';
+    vcard.appendChild(el('div', 'muted', `${V.club} · W. Long Island Sound · VHF ${V.vhf} · first warning ${V.firstWarning} · time limit ${V.timeLimitAt || V.timeLimitMin + ' min'}`));
     DATA.COURSE_RULES.forEach((t) => vcard.appendChild(el('div', 'tip', `<span class="dot">▸</span><span>${t}</span>`)));
     vcard.appendChild(el('div', 'note', '🏆 ' + V.fleetNote));
     body.appendChild(vcard);
@@ -777,6 +881,14 @@
       $('pingState').textContent = 'Committee boat ✓ pinged · line → Mark A.';
       refreshBias();
     }, () => { $('pingState').textContent = 'Could not get GPS fix.'; }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  // Mark A moved (plotter position entered) → re-derive a pinged line from the saved RC fix
+  function recalcPingedLine() {
+    if (!rcPos) return;
+    const a = startMark();
+    stLineBrgT = G.bearing(rcPos, a); stLineLenM = G.distanceNm(rcPos, a) * 1852;
+    $('lineBrg').value = head(stLineBrgT).num;
   }
 
   // favored end = the one further upwind; bias° = how far off square the line is
