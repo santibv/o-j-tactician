@@ -291,6 +291,9 @@ const CAN_ONE_MARKS = {
   // marks NOT in the distance table: legs to/from them are computed from a position
   // the crew enters off the chartplotter (Course tab → Mark positions).
   plotterMarks: { R: 'R Nun "40A" off Milton Point' },
+  // charted positions for those marks (crew can still override on the Course tab).
+  // R: USCG Light List Vol. I, aid no. 21425 — 40°56.1293'N 073°41.2830'W.
+  chartedPos: { R: { lat: 40.935488, lon: -73.688050 } },
   // matrix[FROM][TO] = [bearingMagnetic, distanceNm]
   matrix: {
     A: { B: [136, 1.1], C: [224, 2.4], D: [196, 1.4], E: [207, 2.0], F: [2, 0.7], G: [33, 2.0], H: [210, 3.1], J: [282, 0.9], K: [50, 2.5], M: [90, 4.6], N: [115, 3.6], U: [157, 0.6] },
@@ -318,7 +321,7 @@ const COURSE_RULES = [
   'Check in before 5 min to your start: sail past the RC and hail your sail number.',
   'Time limit 16:00 for all boats (TLE after that). RC leaves station 16:05.',
   'VHF 71. No transmitting while racing except emergencies / retiring (applies to phones too).',
-  'Mark R (Milton Point nun "40A") is not in the distance table — enter its position from the chartplotter on the Course tab.',
+  'Mark R (Milton Point nun "40A") is not in the SI distance table — the app uses its charted position (USCG Light List) to compute R legs.',
 ];
 
 /* ---------------------------------------------------------------------------

@@ -414,6 +414,8 @@
     return { code: 'A', name: 'Start (A)', lat: p.lat, lon: p.lon };
   }
   let coMissing = []; // signaled marks with no known position (e.g. R before it's entered)
+  // off-table mark: crew's plotter entry, else the charted position in data.js
+  const plotterPos = (L) => (S.markPos && S.markPos[L]) || (CO.chartedPos && CO.chartedPos[L]) || null;
   // build the live marks array from the signaled letters + laps (W computed upwind)
   function buildCanOneMarks() {
     const letters = (S.courseLetters || '').toUpperCase().replace(/[^A-Z]/g, ' ').split(/\s+/).filter(Boolean);
@@ -421,7 +423,7 @@
     const pos = G.reconstructMarks(CO, start, S.variation); // {A:{lat,lon}, B:{...}, ...}
     const lookup = (L) => {
       if (L === 'A') return start;
-      const p = (CO.plotterMarks && CO.plotterMarks[L]) ? S.markPos[L] : pos[L];
+      const p = (CO.plotterMarks && CO.plotterMarks[L]) ? plotterPos(L) : pos[L];
       if (p) return { code: L, name: 'Mark ' + L, lat: p.lat, lon: p.lon };
       return null;
     };
@@ -463,7 +465,7 @@
       box.appendChild(c);
     });
     const sq = $('coSeq');
-    const needPos = seq.filter((L) => CO.plotterMarks && CO.plotterMarks[L] && !S.markPos[L]);
+    const needPos = seq.filter((L) => CO.plotterMarks && CO.plotterMarks[L] && !plotterPos(L));
     if (sq) sq.innerHTML = (seq.length
       ? `Course: <b style="color:var(--txt)">A → ${seq.join(' → ')} → A</b>`
       : 'Tap marks in race order; tap again to remove.')
@@ -496,10 +498,11 @@
       ? `A: <b>chartplotter ✓</b> ${fmtPos(A)}`
       : `A: ${fmtPos(A)} <span class="muted">(G Can “1”, charted position)</span>`];
     Object.keys(CO.plotterMarks || {}).forEach((L) => {
-      const p = S.markPos[L];
+      const p = plotterPos(L);
       if (p) {
         const b = head(G.bearing(A, p)).num, d = G.distanceNm(A, p);
-        lines.push(`${L}: <b>✓</b> ${fmtPos(p)} <span class="muted">· from A ${b}°M ${d.toFixed(1)} nm</span>`);
+        const src = S.markPos[L] ? '<b>chartplotter ✓</b>' : '<span class="muted">(charted, USCG Light List)</span>';
+        lines.push(`${L}: ${fmtPos(p)} ${src} <span class="muted">· from A ${b}°M ${d.toFixed(1)} nm</span>`);
       } else {
         lines.push(`${L}: <span style="color:var(--warn)">not set</span> <span class="muted">— ${CO.plotterMarks[L]}; only needed if the RC signals ${L}</span>`);
       }
