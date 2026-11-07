@@ -407,7 +407,7 @@
   const aRow = (code) => CO.matrix.A[code];           // [magBrng, nm] from start
   const isTableMark = (code) => code === 'A' || !!CO.matrix[code];
 
-  // Mark A is a fixed buoy: chartplotter position if the crew entered one, else the SI estimate.
+  // Mark A is a fixed buoy: chartplotter position if the crew entered one, else the charted position in data.js.
   // (Deliberately NOT the venue lat/lon fields — those are just the forecast point.)
   function startMark() {
     const p = (S.markPos && S.markPos.A) || DATA.VENUE.markA || { lat: DATA.VENUE.startLat, lon: DATA.VENUE.startLon };
@@ -494,7 +494,7 @@
     const A = startMark();
     const lines = [S.markPos.A
       ? `A: <b>chartplotter ✓</b> ${fmtPos(A)}`
-      : `A: SI estimate ${fmtPos(A)} <span class="muted">(0.8 nm N of Execution Rocks — enter the plotter position if you can)</span>`];
+      : `A: ${fmtPos(A)} <span class="muted">(G Can “1”, charted position)</span>`];
     Object.keys(CO.plotterMarks || {}).forEach((L) => {
       const p = S.markPos[L];
       if (p) {

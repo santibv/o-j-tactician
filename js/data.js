@@ -248,11 +248,11 @@ const VENUE = {
   name: 'Western LIS — Execution Rocks',
   series: 'Turkey Day Reach · Sat 7 Nov 2026',
   club: 'Huguenot YC',
-  // Mark A = G Can "1", "0.8 nm N of Execution Rocks" (SI 7.4 / 8.3). Estimated from that
-  // description off the Execution Rocks Light (40.8781, -73.7377) — the SI A2 distance
-  // table only fits A ~0.8 nm north of the light. Crew can override from the chartplotter.
-  markA: { lat: 40.89143, lon: -73.73768 },
-  startLat: 40.89143, startLon: -73.73768, // forecast point = Mark A
+  // Mark A = G Can "1", 0.8 nm N of Execution Rocks (SI 7.4 / 8.3).
+  // Position 40°53.514'N 73°44.117'W, supplied by the crew 2026-11-07. Crew can still
+  // override it from the chartplotter on the Course tab.
+  markA: { lat: 40.891900, lon: -73.735283 },
+  startLat: 40.891900, startLon: -73.735283, // forecast point = Mark A
   eventStart: '2026-11-07T12:00',          // first warning (SI 5.2)
   timeLimitAt: '16:00',                    // absolute finish deadline (SI 10.1)
   variationDeg: -12.6,                      // magnetic variation, West = negative

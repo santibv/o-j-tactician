@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Oh Jee!! — J/88 Tactician</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="css/styles.css?v=34" />
+  <link rel="stylesheet" href="css/styles.css?v=35" />
 </head>
 <body>
   <header>
@@ -93,7 +93,7 @@
       <h2 class="section">Mark positions <span class="muted">— from the chartplotter</span></h2>
       <div class="card">
         <div class="hint" id="mkPosState" style="margin-top:0"></div>
-        <label class="fld">Mark A — G Can “1” (optional: replaces the estimate)</label>
+        <label class="fld">Mark A — G Can “1” (optional: overrides the charted position)</label>
         <div class="row">
           <input id="mpALat" placeholder="lat e.g. 40 53.486 N" autocomplete="off" />
           <input id="mpALon" placeholder="lon e.g. 73 44.261 W" autocomplete="off" />
@@ -104,7 +104,7 @@
           <input id="mpRLon" placeholder="lon" autocomplete="off" />
         </div>
         <button class="btn sec small" id="mpSave" style="margin-top:10px">💾 Save mark positions</button>
-        <button class="btn ghost small" id="mpResetA" style="margin-top:6px">Reset A to the SI estimate</button>
+        <button class="btn ghost small" id="mpResetA" style="margin-top:6px">Reset A to the charted position</button>
         <div class="hint">Type it the way the plotter shows it — degrees and minutes (40 53.486 N) or decimal (40.89143). West is assumed for longitude.</div>
       </div>
 
@@ -223,9 +223,9 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=34"></script>
-  <script src="js/geo.js?v=34"></script>
-  <script src="js/weather.js?v=34"></script>
-  <script src="js/app.js?v=34"></script>
+  <script src="js/data.js?v=35"></script>
+  <script src="js/geo.js?v=35"></script>
+  <script src="js/weather.js?v=35"></script>
+  <script src="js/app.js?v=35"></script>
 </body>
 </html>
